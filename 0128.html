@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <title>streetview app</title>
+    <script src="three.js"></script>
+  </head>
+
+  <body>
+    <script>
+      const scene = new THREE.Scene();
+      const camera = new THREE.PerspectiveCamera(70, 1000 / 500, 0.1, 10000);
+      const renderer = new THREE.WebGLRenderer();
+      renderer.setSize(1000, 500);
+      document.body.appendChild(renderer.domElement);
+      const light = new THREE.AmbientLight(0xffffff, 2.0);
+      scene.add(light);
+      camera.position.set(0, 0, 0);
+
+      //マウス操作
+      let mouseX = 0,
+        mouseY = 0,
+        mouseB = 0,
+        u = 0,
+        v = 0;
+      document.addEventListener("mousemove", (event) => {
+        let rect = event.target.getBoundingClientRect();
+        u = ((event.clientX - rect.left) * 2) / (rect.right - rect.left) - 1;
+        v = ((event.clientY - rect.top) * 2) / (rect.top - rect.bottom) + 1;
+        mouseX = event.clientX;
+        mouseY = event.clientY;
+      });
+      document.addEventListener("mousedown", (event) => {
+        mouseB = 1;
+      });
+      document.addEventListener("mouseup", (event) => {
+        mouseB = 0;
+      });
+
+      // 物体検出
+      function detectObject(camera, target_list, exception, u, v) {
+        let vector = new THREE.Vector3(u, v, 1);
+        vector.unproject(camera);
+        let ray = new THREE.Raycaster(
+          camera.position,
+          vector.sub(camera.position).normalize()
+        );
+        let obj_list = ray.intersectObjects(target_list);
+        for (let j = 0; j < obj_list.length; j++) {
+          if (obj_list[j].object != exception) {
+            return obj_list[j].object;
+          }
+        }
+        return null;
+      }
+
+      // 初期化
+      let rot = 0,
+        h = 0;
+      let pmouseX = 0,
+        pmouseY = 0,
+        pmouseB = 0;
+
+      // テクスチャ読み込み
+      const URL =
+        "https://www.gakujutsu.co.jp/text/isbn978-4-7806-0708-6/file/";
+      let texture = [];
+      const loader = new THREE.TextureLoader();
+      const kan ="https://myo-n.github.io/pro4/images/"
+      var signboard = [];
+      for (let i = 0; i < 4; i++) {
+        signboard.push(loader.load(kan+(i+1)+".png"))
+      }
+    //   位置計算
+      function abc(x,y){
+        s=360*x/1920* ( Math.PI / 180 ) ;
+        f=90-180*y/960* ( Math.PI / 180 ) ;
+        a=-Math.cos(s)*Math.cos(f)
+        b=Math.sin(f)
+        c=Math.sin(s)*Math.cos(f)
+        return [a,b,c]
+      }
+    //   看板の設置
+    var res = abc(920,500);
+    var geo = new THREE.BoxGeometry(7, 3, 0.01);
+    var mat = new THREE.MeshStandardMaterial( { map: signboard[0] } );
+    var ano = new THREE.Mesh( geo, mat );
+    ano.position.set( res[0]*20, res[1]*20, res[2]*20 );
+    ano.lookAt( new THREE.Vector3(0,0,0) );
+
+    var res1 = abc(1790,600);
+    var geo1 = new THREE.BoxGeometry(7, 3, 0.01);
+    var mat1 = new THREE.MeshStandardMaterial( { map: signboard[1] } );
+    var ano1 = new THREE.Mesh( geo1, mat1 );
+    ano1.position.set( res1[0]*20, res1[1]*20, res1[2]*20 );
+    ano1.lookAt( new THREE.Vector3(0,0,0) );
+
+    var res2 = abc(500,700);
+    var geo2 = new THREE.BoxGeometry(7, 3, 0.01);
+    var mat2 = new THREE.MeshStandardMaterial( { map: signboard[2] } );
+    var ano2 = new THREE.Mesh( geo2, mat2 );
+    ano2.position.set( res2[0]*20, res2[1]*20, res2[2]*20 );
+    ano2.lookAt( new THREE.Vector3(0,0,0) );
+
+    var res3 = abc(1930,600);
+    var geo3 = new THREE.BoxGeometry(7, 3, 0.01);
+    var mat3 = new THREE.MeshStandardMaterial( { map: signboard[3] } );
+    var ano3 = new THREE.Mesh( geo3, mat3 );
+    ano3.position.set( res3[0]*20, res3[1]*20, res3[2]*20 );
+    ano3.lookAt( new THREE.Vector3(0,0,0) );
+
+      // オブジェクト配置
+      const positions = [
+        [0, 0, 0],
+        [-500, 0, 0],
+        [-1000, 0, 1000],
+        [-1000, 0, 2500],
+      ];
+      const obj_rot = [0, 0, 1, 1];
+      let target_list = [];
+      for (let i = 0; i < 4; i++) {
+        const geometry = new THREE.SphereGeometry(30, 30, 30);
+        texture.push(loader.load(URL + (i + 1) + ".jpg"));
+        const material = new THREE.MeshStandardMaterial({
+          map: texture[i],
+          side: THREE.DoubleSide,
+        });
+        target_list.push(new THREE.Mesh(geometry, material));
+        target_list[i].position.set(
+          positions[i][0],
+          positions[i][1],
+          positions[i][2]
+        );
+        target_list[i].rotation.y = (obj_rot[i] * Math.PI) / 2;
+        scene.add(target_list[i]);
+      }
+      
+      // 最初の視点
+      let current_view = target_list[0];
+      target_list[0].scale.set(100, 100, 100);
+
+      target_list[0].add(ano);
+      target_list[1].add(ano1);
+      target_list[2].add(ano2);
+      target_list[3].add(ano3);
+
+      function draw() {
+        requestAnimationFrame(draw);
+        renderer.render(scene, camera);
+        camera.lookAt(
+          new THREE.Vector3(
+            Math.sin(rot) * 10000,
+            Math.sin(h) * 10000,
+            Math.cos(rot) * 10000
+          )
+        );
+        if (mouseB == 1) {
+          rot -= (pmouseX - mouseX) * 0.005;
+          h -= (pmouseY - mouseY) * 0.005;
+          if (h >= Math.PI / 2) h = Math.PI / 2;
+          if (h <= -Math.PI / 2) h = -Math.PI / 2;
+        }
+        if (mouseB == 1 && pmouseB == 0) {
+          let nextviewpoint = detectObject(
+            camera,
+            target_list,
+            current_view,
+            u,
+            v
+          );
+          if (nextviewpoint != null) {
+            nextviewpoint.scale.set(100, 100, 100);
+            current_view.scale.set(1, 1, 1);
+            camera.position.set(
+              nextviewpoint.position.x,
+              nextviewpoint.position.y,
+              nextviewpoint.position.z
+            );
+            current_view = nextviewpoint;
+          }
+        }
+        pmouseX = mouseX;
+        pmouseY = mouseY;
+        pmouseB = mouseB;
+      }
+
+      draw();
+    </script>
+  </body>
+</html>
